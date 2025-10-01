@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Learning Web App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .section {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        label, input {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+
+        .scroll-box {
+            max-height: 200px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+            resize: vertical;
+        }
+
+        .mixed-content {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .mixed-content div {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .mixed-content img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+
+        .output-box {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Machine Learning Web App</h1>
+
+        <!-- Input Form -->
+        <div class="section">
+            <h2>Input Data</h2>
+            <form id="inputForm">
+                <label>Vendor Label: <input type="number" name="vendor_label" required></label>
+                <label>Model Label: <input type="number" name="model_label" required></label>
+                <label>MYCT (scaled): <input type="number" name="myct" step="any" required></label>
+                <label>MMIN (scaled): <input type="number" name="mmin" step="any" required></label>
+                <label>MMAX (scaled): <input type="number" name="mmax" step="any" required></label>
+                <label>CACH (scaled): <input type="number" name="cach" step="any" required></label>
+                <label>CHMIN (scaled): <input type="number" name="chmin" step="any" required></label>
+                <label>CHMAX (scaled): <input type="number" name="chmax" step="any" required></label>
+                <button type="button" onclick="predictRegression()">Predict ERP</button>
+                <button type="button" onclick="predictClassification()">Predict Performance</button>
+            </form>
+        </div>
+
+        <!-- Regression Output Box -->
+        <div class="section">
+            <h2>ERP Prediction (Output)</h2>
+            <div class="output-box" id="regressionResult">
+                Click "Predict ERP" to see the result here.
+            </div>
+        </div>
+
+        <!-- Classification Output Box -->
+        <div class="section">
+            <h2>Performance Prediction (Output)</h2>
+            <div class="output-box" id="classificationResult">
+                Click "Predict Performance" to see the result here.
+            </div>
+        </div>
+
+        <!-- Scrolling Text Boxes -->
+        <div class="section">
+            <h2>Code Display</h2>
+            <div class="scroll-box" contenteditable="true">
+                <!-- Paste text code here -->
+                # Encode categorical features
+label_encoders = {}
+for column in ["VendorName", "ModelName"]:
+    le = LabelEncoder()
+    data[column] = le.fit_transform(data[column])
+    label_encoders[column] = le
+
+# Split features and target
+X = data.drop(columns=["PRP", "ERP"])
+y = data["PRP"]
+
+# Scale numerical features
+scaler = StandardScaler()
+numerical_features = ["MYCT", "MMIN", "MMAX", "CACH", "CHMIN", "CHMAX"]
+data[numerical_features] = scaler.fit_transform(data[numerical_features])
+
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create regression models
+models = {
+    "Linear Regression": LinearRegression(),
+    "Ridge Regression": Ridge(alpha=1.0),
+    "Lasso Regression": Lasso(alpha=0.1),
+    "Random Forest": RandomForestRegressor(random_state=42),
+    "Gradient Boosting": GradientBoostingRegressor(random_state=42)
+}
+
+# Evaluate models
+results = {}
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    results[name] = {
+        "MAE": mae,
+        "MSE": mse,
+        "R2": r2
+    }
+
+# Display results
+results_df = pd.DataFrame(results).T
+print("Model Evaluation Results:")
+print(results_df)
+
+# Save the best model
+best_model = GradientBoostingRegressor(random_state=42)
+best_model.fit(X_train, y_train)
+import joblib
+joblib.dump(best_model, "best_regression_model.pkl")
+
+# Visualizations
+# Histogram of PRP
+plt.figure(figsize=(10, 6))
+sns.histplot(data["PRP"], kde=True, color="blue")
+plt.title("Distribution of PRP")
+plt.xlabel("PRP")
+plt.ylabel("Frequency")
+plt.show()
+
+# Pairplot for numerical features
+sns.pairplot(data[numerical_features + ["PRP"]])
+plt.show()
+
+# Correlation Heatmap
+plt.figure(figsize=(10, 8))
+correlation_matrix = data.corr()
+sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Correlation Heatmap")
+plt.show()
+
+# Cross-validation for Gradient Boosting
+cv_scores = cross_val_score(best_model, X, y, cv=5, scoring="r2")
+print(f"Cross-validated R2 Score: {cv_scores.mean():.3f} (+/- {cv_scores.std():.3f})")
+
+# Visualizations:
+plt.scatter(y_test, best_model.predict(X_test), alpha=0.7)
+plt.xlabel("Actual PRP")
+plt.ylabel("Predicted PRP")
+plt.title("Actual vs. Predicted Values")
+plt.show()
+
+
+            </div>
+            <div class="scroll-box" contenteditable="true">
+                <!-- Paste text code here -->
+# Google Colab Classification Task
+
+# Import necessary libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+# Load the dataset
+dataset_url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/cpu-performance/machine.data'
+columns = ["VendorName", "ModelName", "MYCT", "MMIN", "MMAX", "CACH", "CHMIN", "CHMAX", "PRP", "ERP"]
+data = pd.read_csv(dataset_url, names=columns, header=None)
+
+# Display dataset structure
+data.head()
+data.info()
+
+# Create a binary target based on PRP (classification task)
+threshold = data["PRP"].median()
+data["Performance"] = (data["PRP"] > threshold).astype(int)  # 1: High Performance, 0: Low Performance
+
+# Encode categorical features
+label_encoders = {}
+for column in ["VendorName", "ModelName"]:
+    le = LabelEncoder()
+    data[column] = le.fit_transform(data[column])
+    label_encoders[column] = le
+
+# Split features and target
+X = data.drop(columns=["PRP", "ERP", "Performance"])
+y = data["Performance"]
+
+# Scale numerical features
+scaler = StandardScaler()
+numerical_features = ["MYCT", "MMIN", "MMAX", "CACH", "CHMIN", "CHMAX"]
+data[numerical_features] = scaler.fit_transform(data[numerical_features])
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create classification models
+models = {
+    "Logistic Regression": LogisticRegression(max_iter=5000, random_state=42),
+    "Random Forest": RandomForestClassifier(random_state=42),
+    "Gradient Boosting": GradientBoostingClassifier(random_state=42),
+    "Support Vector Machine": SVC(probability=True, random_state=42),
+    "AdaBoost": AdaBoostClassifier(random_state=42)
+}
+
+# Evaluate models
+results = {}
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=True)
+    results[name] = {
+        "Accuracy": accuracy,
+        "Precision": report['weighted avg']['precision'],
+        "Recall": report['weighted avg']['recall'],
+        "F1-Score": report['weighted avg']['f1-score']
+    }
+
+# Display results
+results_df = pd.DataFrame(results).T
+print("Model Evaluation Results:")
+print(results_df)
+
+# Save the best model
+best_model = GradientBoostingClassifier(random_state=42)
+best_model.fit(X_train, y_train)
+import joblib
+joblib.dump(best_model, "best_classification_model.pkl")
+
+# Visualizations
+# Class Distribution
+plt.figure(figsize=(40, 10))
+sns.countplot(data["Performance"], palette="coolwarm")
+plt.title("Class Distribution (Performance)")
+plt.xlabel("Performance")
+plt.ylabel("Count")
+plt.show()
+
+# Confusion Matrix
+conf_matrix = confusion_matrix(y_test, best_model.predict(X_test))
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Low Performance", "High Performance"], yticklabels=["Low Performance", "High Performance"])
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# Cross-validation for Gradient Boosting
+cv_scores = cross_val_score(best_model, X, y, cv=5, scoring="accuracy")
+print(f"Cross-validated Accuracy: {cv_scores.mean():.3f} (+/- {cv_scores.std():.3f})")
+            </div>
+        </div>
+
+        <!-- Mixed Content -->
+        <div class="section">
+            <h2>Mixed Content</h2>
+            <div class="mixed-content">
+                <div>
+                    <img src="http://127.0.0.1:5000/static/images/example.png
+" alt="Placeholr Image">
+                    <p>Regression Results</p>
+                </div>
+                <div>
+                    <img src="http://127.0.0.1:5000/static/images/example1.png
+" alt="Placeholder Image">
+                    <p>Clasification Ambiguity</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function predictRegression() {
+            const formData = new FormData(document.getElementById("inputForm"));
+            const data = Object.fromEntries(formData.entries());
+            const response = await fetch("/predict_regression", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            document.getElementById("regressionResult").innerText = `ERP Prediction: ${result["ERP Prediction"]}`;
+        }
+
+        async function predictClassification() {
+            const formData = new FormData(document.getElementById("inputForm"));
+            const data = Object.fromEntries(formData.entries());
+            const response = await fetch("/predict_classification", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            document.getElementById("classificationResult").innerText = result["Performance Prediction"];
+        }
+    </script>
+</body>
+</html>
